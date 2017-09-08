@@ -4,7 +4,33 @@ pipeline:
     image: golang:latest
     pull: true
     commands:
-      - go test -v
-      - go install
+    - go build
+    - go test -v
     when:
       event: push
+
+  publish:
+    image: golang:latest
+    environment:
+    - GITHUB_TOKEN=${GITHUB_TOKEN}
+    - GITHUB_REPO=gitenv
+    - GITHUB_USER=ElementAI
+    commands:
+    - go get github.com/aktau/github-release
+    - >-
+      github-release edit
+      --tag ${DRONE_TAG}
+      --name gitenv-${DRONE_TAG}
+      --description "See ${DRONE_BUILD_LINK}"
+    - GOOS=linux GOARCH=amd64 go build -v
+    - >-
+      github-release upload
+      --tag ${DRONE_TAG}
+      --name linux/amd64/goenv
+    - GOOS=darwin GOARCH=amd64 go build -v
+    - >-
+      github-release upload
+      --tag ${DRONE_TAG}
+      --name darwin/amd64/goenv
+    when:
+      event: tag
