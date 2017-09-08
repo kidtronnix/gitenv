@@ -18,19 +18,27 @@ pipeline:
     commands:
     - go get github.com/aktau/github-release
     - >-
-      github-release edit
+      github-release release
       --tag ${DRONE_TAG}
       --name gitenv-${DRONE_TAG}
       --description "See ${DRONE_BUILD_LINK}"
-    - GOOS=linux GOARCH=amd64 go build -v
+    - GOOS=linux GOARCH=amd64 go build
+    - tar czf gitenv.tar.gz gitenv
     - >-
       github-release upload
       --tag ${DRONE_TAG}
-      --name linux/amd64/goenv
-    - GOOS=darwin GOARCH=amd64 go build -v
+      --replace
+      --label "Linux 64-bits"
+      --name gitenv-linux-amd64.tar.gz
+      --file gitenv.tar.gz
+    - GOOS=darwin GOARCH=amd64 go build
+    - tar czf gitenv.tar.gz gitenv
     - >-
       github-release upload
       --tag ${DRONE_TAG}
-      --name darwin/amd64/goenv
+      --replace
+      --label "MacOS 64-bits"
+      --name gitenv-macos-amd64.tar.gz
+      --file gitenv.tar.gz
     when:
       event: tag
