@@ -1,0 +1,10 @@
+pipeline:
+
+  build:
+    image: golang:latest
+    pull: true
+    commands:
+      - go test -v
+      - go install
+    when:
+      event: push
