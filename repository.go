@@ -29,12 +29,21 @@ func (r *Repository) Build(root string) error {
 			return nil
 		}
 	} else {
-		cmd = exec.Command("git", "clone", r.URL, r.Dir)
+		fmt.Println("getting", r.Dir)
+
+		cmd = exec.Command("git", "clone", "-q", r.URL, r.Dir)
 		cmd.Dir = root
-		cmd.Stderr = os.Stderr
+		cmd.Env = []string{
+			"GIT_TERMINAL_PROMPT=0",
+		}
+
 		if cmd.Run() != nil {
 			return fmt.Errorf("failed to 'git clone %s %s'", r.URL, r.Dir)
 		}
+	}
+
+	if r.Commit == "" {
+		return nil
 	}
 
 	cmd = exec.Command("git", "checkout", "-q", r.Commit)
