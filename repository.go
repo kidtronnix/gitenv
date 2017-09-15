@@ -29,19 +29,29 @@ func (r *Repository) Build(root string) error {
 			return nil
 		}
 	} else {
-		cmd = exec.Command("git", "clone", r.URL, r.Dir)
+		fmt.Println("getting", r.Dir)
+
+		cmd = exec.Command("git", "clone", "-q", r.URL, r.Dir)
 		cmd.Dir = root
 		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("failed to 'git clone %s %s', got %v", r.URL, r.Dir, err)
+		cmd.Env = []string{
+			"GIT_TERMINAL_PROMPT=0",
 		}
+
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to 'git clone %s %s', got %s", r.URL, r.Dir, err)
+		}
+	}
+
+	if r.Commit == "" {
+		return nil
 	}
 
 	cmd = exec.Command("git", "checkout", "-q", r.Commit)
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to 'git checkout %s', got %v", r.Commit, err)
+		return fmt.Errorf("failed to 'git checkout %s', got %s", r.Commit, err)
 	}
 
 	return nil
