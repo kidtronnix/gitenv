@@ -32,16 +32,16 @@ func (r *Repository) Build(root string) error {
 		cmd = exec.Command("git", "clone", r.URL, r.Dir)
 		cmd.Dir = root
 		cmd.Stderr = os.Stderr
-		if cmd.Run() != nil {
-			return fmt.Errorf("failed to 'git clone %s %s'", r.URL, r.Dir)
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to 'git clone %s %s', got %v", r.URL, r.Dir, err)
 		}
 	}
 
 	cmd = exec.Command("git", "checkout", "-q", r.Commit)
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
-	if cmd.Run() != nil {
-		return fmt.Errorf("failed to 'git checkout %s'", r.Commit)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to 'git checkout %s', got %v", r.Commit, err)
 	}
 
 	return nil
