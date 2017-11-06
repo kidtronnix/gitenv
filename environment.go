@@ -23,7 +23,7 @@ func New(path string) (env *Environment, err error) {
 		path: filepath.Join(dir, ".env"),
 	}
 
-	env.Load()
+	err = env.Load()
 	return
 }
 
