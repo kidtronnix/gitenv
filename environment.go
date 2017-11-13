@@ -33,6 +33,8 @@ type Environment struct {
 	Links map[string]string
 	// Repositories contains repositories to clone.
 	Repositories []*Repository
+	// Maximum number of concurrent jobs.
+	Jobs int
 
 	file string
 	root string
@@ -104,14 +106,20 @@ func (env *Environment) Build() error {
 		return nil
 	}
 
-	errs := make(chan error, n)
+	errs := make(chan error)
 
-	for i := 0; i < n; i++ {
-		r := env.Repositories[i]
-		go func() {
-			errs <- r.Build(env.path)
-		}()
-	}
+	c := make(chan struct{}, env.Jobs)
+	go func() {
+		for i := 0; i < n; i++ {
+			c <- struct{}{}
+
+			r := env.Repositories[i]
+			go func() {
+				errs <- r.Build(env.path)
+				<-c
+			}()
+		}
+	}()
 
 	fails := 0
 
