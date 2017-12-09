@@ -86,6 +86,8 @@ func (env *Environment) Build() error {
 			return nil
 		}
 
+	  fmt.Fprintf(os.Stderr, "symlink %s -> %s\n", source, target)
+
 		if err := os.MkdirAll(filepath.Dir(target), 0777); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		}
