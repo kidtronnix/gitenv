@@ -1,7 +1,7 @@
 pipeline:
 
   build:
-    image: golang:latest
+    image: golang
     pull: true
     commands:
     - go build
@@ -10,7 +10,7 @@ pipeline:
       event: push
 
   publish:
-    image: golang:latest
+    image: golang
     secrets: [ github_token ]
     environment:
     - GITHUB_REPO=gitenv
