@@ -33,8 +33,9 @@ type Environment struct {
 	Links map[string]string
 	// Repositories contains repositories to clone.
 	Repositories []*Repository
+
 	// Maximum number of concurrent jobs.
-	Jobs int
+	Jobs int        `json:"-"`
 
 	file string
 	root string
@@ -60,6 +61,32 @@ func (env *Environment) Load() error {
 
 	if err := json.Unmarshal(content, env); err != nil {
 		return fmt.Errorf("json: %s", err)
+	}
+
+	return nil
+}
+
+// Save the environment's details in a new .gitenv file.
+func (env *Environment) Save() error {
+	file := env.file
+
+	if file == "" {
+		if env.root != "" {
+			file = filepath.Join(env.root, ".gitenv")
+		} else {
+			file = "./.gitenv"
+		}
+	}
+
+	var err error
+	var body []byte
+
+	if body, err = json.MarshalIndent(env, "", "  "); err != nil {
+		return fmt.Errorf("json: %s", err)
+	}
+
+  if err = ioutil.WriteFile(file, body, 0777); err != nil {
+		return fmt.Errorf("write: %s", err)
 	}
 
 	return nil
@@ -118,6 +145,46 @@ func (env *Environment) Build() error {
 			r := env.Repositories[i]
 			go func() {
 				errs <- r.Build(env.path)
+				<-c
+			}()
+		}
+	}()
+
+	fails := 0
+
+	for i := 0; i < n; i++ {
+		if err := <-errs; err != nil {
+			fmt.Fprintf(os.Stderr, "error: %s\n", err)
+			fails++
+		}
+	}
+
+	if fails != 0 {
+		return fmt.Errorf("%d errors", fails)
+	}
+
+	return nil
+}
+
+// Build sets links and clone repositories in the environment's directory.
+func (env *Environment) Freeze() error {
+	fmt.Println("freeze:", env.path)
+
+	n := len(env.Repositories)
+	if n == 0 {
+		return nil
+	}
+
+	errs := make(chan error)
+
+	c := make(chan struct{}, 1)
+	go func() {
+		for i := 0; i < n; i++ {
+			c <- struct{}{}
+
+			r := env.Repositories[i]
+			go func() {
+				errs <- r.Freeze(env.path)
 				<-c
 			}()
 		}

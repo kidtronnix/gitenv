@@ -23,6 +23,7 @@ func main() {
 		fmt.Println("commands:")
 		fmt.Println("")
 		fmt.Println("  build       create/update .env from .gitenv file")
+		fmt.Println("  freeze      update .gitenv follow field from current .env")
 		fmt.Println("  help        display help on a command")
 		fmt.Println("")
 		fmt.Println("flags:")
@@ -59,6 +60,8 @@ func main() {
 	switch cmd {
 	case "build":
 		run(build(*path, args))
+	case "freeze":
+		run(freeze(*path, args))
 	default:
 		fmt.Fprintf(os.Stderr, "gitenv: '%s' is not a command. See 'gitenv --help'\n", cmd)
 		os.Exit(2)
