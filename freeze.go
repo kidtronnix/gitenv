@@ -15,7 +15,7 @@ func freeze(path string, args []string) error {
 	}
 
 	if err = env.Freeze(); err != nil {
-	  return err
+		return err
 	}
 
 	return env.Save()

@@ -11,17 +11,17 @@ import (
 // Repository defines details to clone a dependency.
 type Repository struct {
 	// Dir contains the relative path where git will clone the repository from the root of the environment.
-	Dir string      `json:"dir"`
+	Dir string `json:"dir"`
 	// URL contains the URL of the repository.
-	URL string      `json:"url"`
+	URL string `json:"url"`
 	// Commit contains the hash that is checked out
-	Commit string   `json:"commit"`
+	Commit string `json:"commit"`
 	// Commit contains the treeish (commit, tag or branch) that is used to select the commit
-	Follow string   `json:"follow"`
+	Follow string `json:"follow"`
 }
 
 // Build clones and checks out the repository at the specified commit inside the environment.
-func (r *Repository) Build(root string) error {
+func (r *Repository) Build(root string, upgrade bool, timestamp string) error {
 	dir := filepath.Join(root, r.Dir)
 
 	// git rev-list -n 1 --before="2017-12-03 00:00" master
@@ -32,12 +32,14 @@ func (r *Repository) Build(root string) error {
 	msg := r.Dir
 
 	if stdout, err := cmd.Output(); err == nil {
-		if r.Commit == "" {
-		  fmt.Println(msg, "-> at HEAD commit")
-			return nil
-		} else if r.Commit == strings.TrimSpace(string(stdout)) {
-		  fmt.Println(msg, "-> at commit", r.Commit)
-			return nil
+		if !upgrade && timestamp == "" {
+			if r.Commit == "" {
+				fmt.Println(msg, "-> at HEAD commit")
+				return nil
+			} else if r.Commit == strings.TrimSpace(string(stdout)) {
+				fmt.Println(msg, "-> at commit", r.Commit)
+				return nil
+			}
 		}
 
 		// Already a cloned repo, just need to move to another commit
@@ -50,20 +52,60 @@ func (r *Repository) Build(root string) error {
 		}
 
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("%s failed to 'git clone %s %s', got %s", msg, r.URL, r.Dir, err)
+			return fmt.Errorf("%s -> failed to 'git clone %s %s', got %s", msg, r.URL, r.Dir, err)
 		}
 
 		msg = fmt.Sprint(msg, " -> cloned")
 	}
 
-	if r.Commit == "" {
-	  cmd = exec.Command("git", "rev-parse", "HEAD")
-  	cmd.Dir = dir
+	follow := "origin/master"
+	if r.Follow != "" {
+		follow = r.Follow
+	}
 
-  	if stdout, err := cmd.Output(); err == nil {
-  		r.Commit = strings.TrimSpace(string(stdout))
-		  fmt.Printf("%s -> checked out HEAD commit %s\n", msg, r.Commit)
-  	} else {
+	if upgrade {
+		// if upgrading, forget the current commit and get the latest version on the followed branch/tag/commit
+		// fetch
+		cmd = exec.Command("git", "fetch", "-q")
+		cmd.Dir = dir
+		cmd.Stderr = os.Stderr
+
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("%s -> failed to 'git fetch', got %s", msg, err)
+		}
+
+		cmd = exec.Command("git", "rev-parse", follow)
+		cmd.Dir = dir
+
+		if stdout, err := cmd.Output(); err == nil {
+			commit := strings.TrimSpace(string(stdout))
+			if r.Commit != "" && commit != r.Commit {
+				msg = fmt.Sprint(msg, " -> upgrading from commit ", r.Commit, " to ", commit)
+				r.Commit = commit
+			}
+		} else {
+			return fmt.Errorf("%s -> failed to 'git rev-parse HEAD', got %s", msg, r.URL, r.Dir, err)
+		}
+	} else if timestamp != "" {
+		// if the timestamp is set, need to get the last commit id before the timestamp matching
+		// the "follow" (or master) field - should be a branch. A commit/tag will not be reliable
+		// for rev-list. It will work.
+		cmd = exec.Command("git", "rev-list", "-n", "1", "--before", timestamp, follow)
+		cmd.Dir = dir
+		if stdout, err := cmd.Output(); err != nil {
+			return fmt.Errorf("%s -> failed to 'git rev-list -n 1 --before %s %s', got %s", msg, timestamp, follow)
+		} else {
+			r.Commit = strings.TrimSpace(string(stdout))
+			fmt.Println(msg, "-> using commit", r.Commit)
+		}
+	} else if r.Commit == "" {
+		cmd = exec.Command("git", "rev-parse", "HEAD")
+		cmd.Dir = dir
+
+		if stdout, err := cmd.Output(); err == nil {
+			r.Commit = strings.TrimSpace(string(stdout))
+			fmt.Printf("%s -> checked out HEAD commit %s\n", msg, r.Commit)
+		} else {
 			return fmt.Errorf("%s -> failed to 'git rev-parse HEAD', got %s", msg, r.URL, r.Dir, err)
 		}
 
@@ -93,16 +135,16 @@ func (r *Repository) Freeze(root string) error {
 	msg := r.Dir
 
 	if stdout, err := cmd.Output(); err == nil {
-	  commit := strings.TrimSpace(string(stdout))
+		commit := strings.TrimSpace(string(stdout))
 		if r.Commit == "" {
-		  msg = fmt.Sprint(msg, " -> frozen commit ",commit)
+			msg = fmt.Sprint(msg, " -> frozen commit ", commit)
 		} else if r.Commit == commit {
-		  msg = fmt.Sprint(msg, " -> already frozen ")
+			msg = fmt.Sprint(msg, " -> already frozen ")
 		} else if r.Commit != commit {
-		  msg = fmt.Sprint(msg, " -> upgraded frozen commit from ",r.Commit," to ",commit)
+			msg = fmt.Sprint(msg, " -> upgraded frozen commit from ", r.Commit, " to ", commit)
 		}
 		r.Commit = commit
-	  fmt.Println(msg)
+		fmt.Println(msg)
 		// Already a cloned repo, just need to move to another commit
 	} else {
 		return fmt.Errorf("%s -> failed to 'git rev-parse HEAD', got %s", msg, err)

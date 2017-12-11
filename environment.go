@@ -35,7 +35,7 @@ type Environment struct {
 	Repositories []*Repository
 
 	// Maximum number of concurrent jobs.
-	Jobs int        `json:"-"`
+	Jobs int `json:"-"`
 
 	file string
 	root string
@@ -85,7 +85,7 @@ func (env *Environment) Save() error {
 		return fmt.Errorf("json: %s", err)
 	}
 
-  if err = ioutil.WriteFile(file, body, 0777); err != nil {
+	if err = ioutil.WriteFile(file, body, 0777); err != nil {
 		return fmt.Errorf("write: %s", err)
 	}
 
@@ -93,7 +93,7 @@ func (env *Environment) Save() error {
 }
 
 // Build sets links and clone repositories in the environment's directory.
-func (env *Environment) Build() error {
+func (env *Environment) Build(upgrade bool, timestamp string) error {
 	fmt.Println("build:", env.path)
 
 	symlink := func(source, target string) error {
@@ -113,7 +113,7 @@ func (env *Environment) Build() error {
 			return nil
 		}
 
-	  fmt.Fprintf(os.Stderr, "symlink %s -> %s\n", source, target)
+		fmt.Fprintf(os.Stderr, "symlink %s -> %s\n", source, target)
 
 		if err := os.MkdirAll(filepath.Dir(target), 0777); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %s\n", err)
@@ -144,7 +144,7 @@ func (env *Environment) Build() error {
 
 			r := env.Repositories[i]
 			go func() {
-				errs <- r.Build(env.path)
+				errs <- r.Build(env.path, upgrade, timestamp)
 				<-c
 			}()
 		}
