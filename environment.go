@@ -101,6 +101,8 @@ func (env *Environment) Build(upgrade bool, timestamp string) error {
 			if b, err := os.Stat(source); err == nil {
 				if os.SameFile(a, b) {
 					return nil
+				} else {
+					fmt.Println(target, source, "not the same")
 				}
 			} else {
 				return err
